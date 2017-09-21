@@ -256,14 +256,16 @@ static cmark_node *finalize(cmark_parser *parser, cmark_node *b) {
   switch (S_type(b)) {
   case CMARK_NODE_PARAGRAPH:
   {
-    cmark_chunk chunk = {node_content->ptr, node_content->size, 0};
-    while (chunk.len && chunk.data[0] == '[' &&
-           (pos = cmark_parse_reference_inline(parser->mem, &chunk, parser->refmap))) {
+    if (!(parser->options & CMARK_OPT_IGNORE_REFLINKS)) {
+      cmark_chunk chunk = {node_content->ptr, node_content->size, 0};
+      while (chunk.len && chunk.data[0] == '[' &&
+             (pos = cmark_parse_reference_inline(parser->mem, &chunk, parser->refmap))) {
 
-      chunk.data += pos;
-      chunk.len -= pos;
+        chunk.data += pos;
+        chunk.len -= pos;
+      }
+      cmark_strbuf_drop(node_content, (node_content->size - chunk.len));
     }
-    cmark_strbuf_drop(node_content, (node_content->size - chunk.len));
     if (is_blank(node_content, 0)) {
       // remove blank node (former reference def)
       cmark_node_free(b);
@@ -863,6 +865,7 @@ static void open_new_blocks(cmark_parser *parser, cmark_node **container,
   bool save_partially_consumed_tab;
   int save_offset;
   int save_column;
+  bool ignore_headings = parser->options & CMARK_OPT_IGNORE_HEADINGS;
 
   while (cont_type != CMARK_NODE_CODE_BLOCK &&
          cont_type != CMARK_NODE_HTML_BLOCK) {
@@ -883,8 +886,8 @@ static void open_new_blocks(cmark_parser *parser, cmark_node **container,
       *container = add_child(parser, *container, CMARK_NODE_BLOCK_QUOTE,
                              blockquote_startpos + 1);
 
-    } else if (!indented && (matched = scan_atx_heading_start(
-                                 input, parser->first_nonspace))) {
+    } else if (!ignore_headings && (!indented && (matched = scan_atx_heading_start(
+                                                  input, parser->first_nonspace)))) {
       bufsize_t hashpos;
       int level = 0;
       bufsize_t heading_startpos = parser->first_nonspace;
@@ -929,9 +932,9 @@ static void open_new_blocks(cmark_parser *parser, cmark_node **container,
       (*container)->as.html_block_type = matched;
       // note, we don't adjust parser->offset because the tag is part of the
       // text
-    } else if (!indented && cont_type == CMARK_NODE_PARAGRAPH &&
+    } else if (!ignore_headings && (!indented && cont_type == CMARK_NODE_PARAGRAPH &&
                (lev =
-                    scan_setext_heading_line(input, parser->first_nonspace))) {
+                    scan_setext_heading_line(input, parser->first_nonspace)))) {
       (*container)->type = (uint16_t)CMARK_NODE_HEADING;
       (*container)->as.heading.level = lev;
       (*container)->as.heading.setext = true;

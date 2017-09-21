@@ -581,6 +581,14 @@ char *cmark_render_latex(cmark_node *root, int options, int width);
  */
 #define CMARK_OPT_SMART (1 << 10)
 
+/** Ignore inline reference links.
+ */
+#define CMARK_OPT_IGNORE_REFLINKS (1 << 11)
+
+/** Ignore heading markers.
+ */
+#define CMARK_OPT_IGNORE_HEADINGS (1 << 12)
+
 /**
  * ## Version information
  */
